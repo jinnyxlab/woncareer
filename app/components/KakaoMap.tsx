@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { SIDO_LIST, SIGUNGU_LIST } from '../data/sigungu';
+import { useEffect, useRef } from 'react';
 
 declare global {
   interface Window {
@@ -17,11 +16,13 @@ interface Childcare {
   capacity: string;
 }
 
-export default function KakaoMap() {
+interface KakaoMapProps {
+  selectedSigungu: string;
+}
+
+export default function KakaoMap({ selectedSigungu }: KakaoMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
-  const [selectedSido, setSelectedSido] = useState('');
-  const [selectedSigungu, setSelectedSigungu] = useState('');
   const markersRef = useRef<any[]>([]);
 
   useEffect(() => {
@@ -39,86 +40,54 @@ export default function KakaoMap() {
     document.head.appendChild(script);
   }, []);
 
-  const clearMarkers = () => {
+  useEffect(() => {
+    if (!selectedSigungu || !mapInstance.current) return;
+
+    // 기존 마커 제거
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
-  };
 
-  const loadChildcare = async (arcode: string) => {
-    clearMarkers();
-    const res = await fetch(`/api/childcare?arcode=${arcode}`);
-    const items: Childcare[] = await res.json();
-    const geocoder = new window.kakao.maps.services.Geocoder();
+    const loadChildcare = async () => {
+      const res = await fetch(`/api/childcare?arcode=${selectedSigungu}`);
+      const items: Childcare[] = await res.json();
+      const geocoder = new window.kakao.maps.services.Geocoder();
 
-    items.forEach((item) => {
-      geocoder.addressSearch(item.address, (result: any, status: any) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
-          const marker = new window.kakao.maps.Marker({
-            map: mapInstance.current,
-            position: coords,
-            title: item.name,
-          });
+      items.forEach((item) => {
+        geocoder.addressSearch(item.address, (result: any, status: any) => {
+          if (status === window.kakao.maps.services.Status.OK) {
+            const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
+            const marker = new window.kakao.maps.Marker({
+              map: mapInstance.current,
+              position: coords,
+              title: item.name,
+            });
 
-          const infowindow = new window.kakao.maps.InfoWindow({
-            content: `<div style="padding:5px;font-size:12px;">
-              <b>${item.name}</b><br/>
-              ${item.address}<br/>
-              ${item.tel}
-            </div>`,
-          });
+            const infowindow = new window.kakao.maps.InfoWindow({
+              content: `<div style="padding:8px;font-size:12px;min-width:150px;">
+                <b style="color:#16a34a;">${item.name}</b><br/>
+                <span style="color:#666;">${item.address}</span><br/>
+                <span style="color:#666;">${item.tel}</span>
+              </div>`,
+            });
 
-          window.kakao.maps.event.addListener(marker, 'click', () => {
-            infowindow.open(mapInstance.current, marker);
-          });
+            window.kakao.maps.event.addListener(marker, 'click', () => {
+              infowindow.open(mapInstance.current, marker);
+            });
 
-          markersRef.current.push(marker);
-        }
+            markersRef.current.push(marker);
+
+            // 첫 번째 마커로 지도 이동
+            if (markersRef.current.length === 1) {
+              mapInstance.current.setCenter(coords);
+              mapInstance.current.setLevel(7);
+            }
+          }
+        });
       });
-    });
-  };
+    };
 
-  const handleSidoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedSido(e.target.value);
-    setSelectedSigungu('');
-    clearMarkers();
-  };
+    loadChildcare();
+  }, [selectedSigungu]);
 
-  const handleSigunguChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const code = e.target.value;
-    setSelectedSigungu(code);
-    if (code) loadChildcare(code);
-  };
-
-  return (
-    <div className="relative w-full h-screen">
-      {/* 드롭다운 */}
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
-        <select
-          value={selectedSido}
-          onChange={handleSidoChange}
-          className="px-3 py-2 rounded shadow bg-white text-sm"
-        >
-          <option value="">시/도 선택</option>
-          {SIDO_LIST.map(sido => (
-            <option key={sido.code} value={sido.code}>{sido.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={selectedSigungu}
-          onChange={handleSigunguChange}
-          className="px-3 py-2 rounded shadow bg-white text-sm"
-          disabled={!selectedSido}
-        >
-          <option value="">시/구 선택</option>
-          {(SIGUNGU_LIST[selectedSido] || []).map(sigungu => (
-            <option key={sigungu.code} value={sigungu.code}>{sigungu.name}</option>
-          ))}
-        </select>
-      </div>
-
-      <div ref={mapRef} style={{ width: '100%', height: '100vh' }} />
-    </div>
-  );
+  return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />;
 }

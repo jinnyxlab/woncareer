@@ -1,25 +1,21 @@
+import { supabase } from '../../lib/supabase';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const arcode = searchParams.get('arcode') || '11380';
+  const sigungu_code = searchParams.get('arcode');
 
-  const response = await fetch(
-    `http://api.childcare.go.kr/mediate/rest/cpmsapi021/cpmsapi021/request?key=${process.env.NEXT_PUBLIC_CHILDCARE_API_KEY}&arcode=${arcode}`
-  );
+  if (!sigungu_code) {
+    return Response.json([]);
+  }
 
-  const text = await response.text();
+  const { data, error } = await supabase
+    .from('institutions')
+    .select('id, code, name, address, tel, capacity, lat, lng')
+    .eq('sigungu_code', sigungu_code);
 
-  // XML 파싱
-  const items = [...text.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(match => {
-    const item = match[1];
-    const get = (tag: string) => item.match(new RegExp(`<${tag}>(.*?)<\/${tag}>`))?.[1] || '';
-    return {
-      code: get('stcode'),
-      name: get('crname'),
-      address: get('craddr'),
-      tel: get('crtelno') || get('crtel'),
-      capacity: get('crcapat'),
-    };
-  });
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
 
-  return Response.json(items);
+  return Response.json(data);
 }

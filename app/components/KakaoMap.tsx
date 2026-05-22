@@ -64,10 +64,11 @@ export default function KakaoMap({ selectedSigungu }: KakaoMapProps) {
         });
 
         const infowindow = new window.kakao.maps.InfoWindow({
-          content: `<div style="padding:8px;font-size:12px;min-width:150px;">
+          content: `<div style="padding:10px;font-size:12px;min-width:200px;line-height:1.8;">
             <b style="color:#16a34a;">${item.name}</b><br/>
             <span style="color:#666;">${item.address}</span><br/>
-            <span style="color:#666;">${item.tel}</span>
+            <span style="color:#666;">${item.tel}</span><br/>
+            <a href="/institutions/${item.id}" style="color:#16a34a;font-size:11px;font-weight:bold;">상세보기 →</a>
           </div>`,
         });
 

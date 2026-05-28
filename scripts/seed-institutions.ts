@@ -5,20 +5,47 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const CHILDCARE_API_KEY = process.env.NEXT_PUBLIC_CHILDCARE_API_KEY!;
-const KAKAO_API_KEY = process.env.KAKAO_REST_API_KEY!;
+const API_KEY_030 = process.env.NEXT_PUBLIC_CHILDCARE_API_KEY_030!;
+const API_KEY_021 = process.env.NEXT_PUBLIC_CHILDCARE_API_KEY!;
+const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY!;
 
 const SIGUNGU_CODES = Object.values(SIGUNGU_LIST).flat().map(s => s.code);
 
-async function fetchChildcare(arcode: string) {
-  const res = await fetch(
-    `http://api.childcare.go.kr/mediate/rest/cpmsapi021/cpmsapi021/request?key=${CHILDCARE_API_KEY}&arcode=${arcode}`
-  );
-  const text = await res.text();
-
-  const items = [...text.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(match => {
+function parseItems030(text: string, arcode: string) {
+  return [...text.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(match => {
     const item = match[1];
-    const get = (tag: string) => item.match(new RegExp(`<${tag}>(.*?)<\/${tag}>`))?.[1]?.trim() || '';
+    const get = (tag: string) => item.match(new RegExp(`<${tag}>(.*?)<\/${tag}>`, 'i'))?.[1]?.trim() || '';
+    const lat = parseFloat(get('la'));
+    const lng = parseFloat(get('lo'));
+    return {
+      code: get('stcode'),
+      name: get('crname'),
+      type: get('crtypename'),
+      status: get('crstatusname'),
+      address: get('craddr'),
+      zipcode: get('zipcode'),
+      tel: get('crtelno'),
+      capacity: parseInt(get('crcapat')) || 0,
+      capacity_current: parseInt(get('crchcnt')) || 0,
+      homepage: get('crhome'),
+      representative: get('crrepname'),
+      cctv_count: parseInt(get('cctvinstlcnt')) || 0,
+      teacher_count: parseInt(get('chcrtescnt')) || 0,
+      room_count: parseInt(get('nrtrroomcnt')) || 0,
+      shuttle_bus: get('crcargbname'),
+      approved_date: get('crcnfmdt'),
+      lat: isNaN(lat) ? null : lat,
+      lng: isNaN(lng) ? null : lng,
+      sigungu_code: arcode,
+      sido_code: arcode.slice(0, 2),
+    };
+  }).filter(i => i.code);
+}
+
+function parseItems021(text: string, arcode: string) {
+  return [...text.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(match => {
+    const item = match[1];
+    const get = (tag: string) => item.match(new RegExp(`<${tag}>(.*?)<\/${tag}>`, 'i'))?.[1]?.trim() || '';
     return {
       code: get('stcode'),
       name: get('crname'),
@@ -26,19 +53,42 @@ async function fetchChildcare(arcode: string) {
       tel: get('crtelno') || get('crtel'),
       capacity: parseInt(get('crcapat')) || 0,
       homepage: get('crhome'),
+      lat: null,
+      lng: null,
       sigungu_code: arcode,
       sido_code: arcode.slice(0, 2),
     };
-  });
+  }).filter(i => i.code);
+}
 
-  return items;
+async function fetchChildcare(arcode: string) {
+  try {
+    const [res030, res021] = await Promise.all([
+      fetch(`http://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request?key=${API_KEY_030}&arcode=${arcode}`),
+      fetch(`http://api.childcare.go.kr/mediate/rest/cpmsapi021/cpmsapi021/request?key=${API_KEY_021}&arcode=${arcode}`),
+    ]);
+
+    const [text030, text021] = await Promise.all([res030.text(), res021.text()]);
+
+    const items030 = parseItems030(text030, arcode);
+    const items021 = parseItems021(text021, arcode);
+
+    // 030에 없는 기관만 021에서 추가
+    const codes030 = new Set(items030.map(i => i.code));
+    const extra = items021.filter(i => !codes030.has(i.code));
+
+    return [...items030, ...extra];
+  } catch (e) {
+    console.error(`API 호출 오류 (${arcode}):`, e);
+    return [];
+  }
 }
 
 async function getCoords(address: string): Promise<{ lat: number; lng: number } | null> {
   try {
     const res = await fetch(
       `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` } }
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
     );
     const data = await res.json();
     if (data.documents?.length > 0) {

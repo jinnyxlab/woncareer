@@ -15,8 +15,10 @@ function parseItems030(text: string, arcode: string) {
   return [...text.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(match => {
     const item = match[1];
     const get = (tag: string) => item.match(new RegExp(`<${tag}>(.*?)<\/${tag}>`, 'i'))?.[1]?.trim() || '';
+    const num = (tag: string) => parseInt(get(tag)) || 0;
     const lat = parseFloat(get('la'));
     const lng = parseFloat(get('lo'));
+
     return {
       code: get('stcode'),
       name: get('crname'),
@@ -25,15 +27,34 @@ function parseItems030(text: string, arcode: string) {
       address: get('craddr'),
       zipcode: get('zipcode'),
       tel: get('crtelno'),
-      capacity: parseInt(get('crcapat')) || 0,
-      capacity_current: parseInt(get('crchcnt')) || 0,
+      capacity: num('crcapat'),
+      capacity_current: num('crchcnt'),
       homepage: get('crhome'),
       representative: get('crrepname'),
-      cctv_count: parseInt(get('cctvinstlcnt')) || 0,
-      teacher_count: parseInt(get('chcrtescnt')) || 0,
-      room_count: parseInt(get('nrtrroomcnt')) || 0,
+      cctv_count: num('cctvinstlcnt'),
+      teacher_count: num('chcrtescnt'),
+      room_count: num('nrtrroomcnt'),
+      playground_count: num('plgrdco'),
       shuttle_bus: get('crcargbname'),
       approved_date: get('crcnfmdt'),
+      // 근속년수
+      em_cnt_0y: num('em_cnt_0y'),
+      em_cnt_1y: num('em_cnt_1y'),
+      em_cnt_2y: num('em_cnt_2y'),
+      em_cnt_4y: num('em_cnt_4y'),
+      em_cnt_6y: num('em_cnt_6y'),
+      // 입소대기
+      ew_cnt_00: num('ew_cnt_00'),
+      ew_cnt_01: num('ew_cnt_01'),
+      ew_cnt_02: num('ew_cnt_02'),
+      ew_cnt_03: num('ew_cnt_03'),
+      ew_cnt_04: num('ew_cnt_04'),
+      ew_cnt_05: num('ew_cnt_05'),
+      ew_cnt_m6: num('ew_cnt_m6'),
+      ew_cnt_tot: num('ew_cnt_tot'),
+      // 반수/아동수 총계
+      class_cnt_tot: num('class_cnt_tot'),
+      child_cnt_tot: num('child_cnt_tot'),
       lat: isNaN(lat) ? null : lat,
       lng: isNaN(lng) ? null : lng,
       sigungu_code: arcode,

@@ -198,7 +198,7 @@ async function seedCoords() {
       failed++;
     }
 
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 10));
   }
 
   console.log(`\n🎉 좌표 적재 완료! 성공 ${success}건 / 실패 ${failed}건`);

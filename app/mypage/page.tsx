@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '../components/Header';
 import { supabase } from '../lib/supabase';
+import Link from 'next/link';
 
 interface User {
   id: string;
@@ -26,6 +27,8 @@ interface User {
   business_number: string;
   institution_address: string;
   institution_tel: string;
+  verified: boolean;
+  verify_status: string;
 }
 
 export default function MyPage() {
@@ -187,6 +190,32 @@ export default function MyPage() {
           </div>
         </div>
 
+        {/* 보육교사 인증 */}
+        {user?.role === 'teacher' && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+            <h2 className="text-sm font-bold text-gray-700 mb-3">보육교사 인증</h2>
+            {user.verify_status === 'none' || !user.verify_status ? (
+              <>
+                <p className="text-xs text-gray-400 mb-4">자격증과 경력증명서를 제출하면 리뷰 작성이 가능해요.</p>
+                <Link href="/auth/verify-docs" className="text-sm bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors inline-block">
+                  인증 서류 제출
+                </Link>
+              </>
+            ) : user.verify_status === 'pending' ? (
+              <p className="text-xs text-yellow-500">⏳ 서류 검토 중이에요. 1~2일 내에 처리됩니다.</p>
+            ) : user.verify_status === 'approved' ? (
+              <p className="text-xs text-green-600">✅ 인증 완료! 리뷰 작성이 가능해요.</p>
+            ) : user.verify_status === 'rejected' ? (
+              <>
+                <p className="text-xs text-red-400 mb-4">❌ 서류가 반려됐어요. 다시 제출해주세요.</p>
+                <Link href="/auth/verify-docs" className="text-sm bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors inline-block">
+                  서류 다시 제출
+                </Link>
+              </>
+            ) : null}
+          </div>
+        )}
+
         {/* 보육교사 정보 */}
         {user?.role === 'teacher' && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
@@ -228,14 +257,19 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* 로그아웃 */}
+        {/* 회원 탈퇴 */}
         {!editing && (
           <button
             type="button"
-            onClick={async () => { await supabase.auth.signOut(); router.push('/'); }}
+            onClick={async () => {
+              if (!confirm('정말 탈퇴하시겠어요? 모든 데이터가 삭제됩니다.')) return;
+              await supabase.from('users').delete().eq('id', user!.id);
+              await supabase.auth.signOut();
+              router.push('/');
+            }}
             className="w-full text-sm text-red-400 hover:text-red-500 py-3 transition-colors"
           >
-            로그아웃
+            회원 탈퇴
           </button>
         )}
       </main>

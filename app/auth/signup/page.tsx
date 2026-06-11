@@ -19,24 +19,18 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
 
-    const { data, error: signupError } = await supabase.auth.signUp({ email, password });
+    const { error: signupError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, role }
+      }
+    });
 
     if (signupError) {
       setError('회원가입에 실패했습니다. 다시 시도해주세요.');
       setLoading(false);
       return;
-    }
-
-    if (data.user) {
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({ id: data.user.id, email, name, role });
-
-      if (insertError) {
-        setError('사용자 정보 저장에 실패했습니다.');
-        setLoading(false);
-        return;
-      }
     }
 
     router.push('/auth/verify');

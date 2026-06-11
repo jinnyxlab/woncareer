@@ -14,8 +14,40 @@ export default function SignupPage() {
   const [role, setRole] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailChecked, setEmailChecked] = useState(false);
+  const [emailMessage, setEmailMessage] = useState('');
 
+  const checkEmail = async () => {
+    if (!email) { setEmailMessage('이메일을 입력해주세요.'); return; }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (data) {
+      setEmailMessage('이미 가입된 이메일이에요.');
+      setEmailChecked(false);
+    } else {
+      setEmailMessage('사용 가능한 이메일이에요.');
+      setEmailChecked(true);
+    }
+  };
   const handleSignup = async () => {
+    if (!emailChecked) {
+      setError('이메일 중복확인을 해주세요.');
+      return;
+    }
+    if (!name || !email || !password) {
+      setError('모든 항목을 입력해주세요.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('비밀번호는 6자 이상이어야 해요.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -28,7 +60,11 @@ export default function SignupPage() {
     });
 
     if (signupError) {
-      setError('회원가입에 실패했습니다. 다시 시도해주세요.');
+      if (signupError.message.includes('already registered')) {
+        setError('이미 가입된 이메일이에요.');
+      } else {
+        setError('회원가입에 실패했습니다. 다시 시도해주세요.');
+      }
       setLoading(false);
       return;
     }
@@ -73,21 +109,44 @@ export default function SignupPage() {
           <div className="flex flex-col gap-3">
             <input
               type="text"
-              placeholder="이름"
+              placeholder="이름 *"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-400"
             />
-            <input
-              type="email"
-              placeholder="이메일"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-400"
-            />
+
+            {/* 이메일 + 중복확인 */}
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="이메일 *"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailChecked(false);
+                    setEmailMessage('');
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-400"
+                />
+                <button
+                  type="button"
+                  onClick={checkEmail}
+                  className="text-sm bg-gray-100 text-gray-600 px-3 py-2.5 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap"
+                >
+                  중복확인
+                </button>
+              </div>
+              {emailMessage && (
+                <p className={`text-xs ${emailChecked ? 'text-green-600' : 'text-red-400'}`}>
+                  {emailMessage}
+                </p>
+              )}
+            </div>
+
             <input
               type="password"
-              placeholder="비밀번호 (6자 이상)"
+              placeholder="비밀번호 (6자 이상) *"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-400"

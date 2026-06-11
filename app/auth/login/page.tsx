@@ -19,13 +19,19 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      if (error.message.includes('Email not confirmed')) {
+        setError('이메일 인증이 필요해요. 가입 시 받은 이메일을 확인해주세요.');
+      } else if (error.message.includes('Invalid login credentials')) {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else {
+        setError('로그인에 실패했습니다. 다시 시도해주세요.');
+      }
     } else {
       router.push('/');
     }
     setLoading(false);
   };
-
+  
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
